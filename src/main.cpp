@@ -6,72 +6,63 @@
 #include <iostream>
 #include <string>
 
+#include "Employees.h"
+#include "Stack.h"
 #include "mylib.h"
 
 using namespace std;
 
-class Employees {
- private:
-  string name;
+// class Employees {
+//  private:
+//   string name;
 
- public:
-  void setName(string n) { name = n; }
+//  public:
+//   void setName(string n) { name = n; }
 
-  string getName() { return name; }
-};
+//   string getName() { return name; }
+// };
 
 char getch_linux() {
-  char buf = 0;  // Variable to store the input character
+  char buf = 0;
+  struct termios old = {0};
 
-  struct termios old = {0};  // Structure to save current terminal settings
-
-  // Save the current terminal settings
   tcgetattr(0, &old);
 
-  // Disable Canonical Mode (do not wait for Enter key)
   old.c_lflag &= ~ICANON;
-
-  // Disable Echo so typed characters are not displayed
   old.c_lflag &= ~ECHO;
 
-  // Require at least one character to be read
   old.c_cc[VMIN] = 1;
-
-  // No timeout while waiting for input
   old.c_cc[VTIME] = 0;
 
-  // Apply the modified settings immediately
   tcsetattr(0, TCSANOW, &old);
 
-  // Read a single character immediately from the keyboard
   read(0, &buf, 1);
 
-  // Re-enable Canonical Mode
   old.c_lflag |= ICANON;
-
-  // Re-enable Echo
   old.c_lflag |= ECHO;
 
-  // Restore the terminal to its original settings
   tcsetattr(0, TCSADRAIN, &old);
 
-  // Return the character that was read
   return buf;
 }
-void enterEmployees(Employees emp[], int &employeeCount) {
-  employeeCount = 0;
+
+void enterEmployees(Stack& emp) {
+  Employees discarded;
+
+  while (emp.pop(&discarded)) {
+  }
 
   cout << "\033[2J\033[H";
-
+  setColor("yellow");
   display(5, 3, "Enter Employee Names:");
-  display(5, 4, "Press ESC to return to menu");
-
+  display(5, 4, "Press ESC Twice to return to menu");
+  setColor("white");
   for (int i = 0; i < 20; i++) {
     string n;
     char key;
+    int spaceflag = 0;
+    cout << "\n    Enter employee " << i + 1 << ": " << flush;
 
-    cout << "\nEnter employee " << i + 1 << ": " << flush; 
-    // you have to press ESC twice to check whether you inputed an arrrow key or not
     while (true) {
       key = getch_linux();
 
@@ -94,41 +85,149 @@ void enterEmployees(Employees emp[], int &employeeCount) {
       if (key == 127) {
         if (!n.empty()) {
           n.pop_back();
+
+          if (n.empty()) {
+            spaceflag = 0;
+          }
+
           cout << "\033[1D \033[1D" << flush;
         }
         continue;
       }
 
-      n += key;
-      cout << key << flush;
+      if ((key >= 'A' && key <= 'Z') || (key >= 'a' && key <= 'z')) {
+        n += key;
+        cout << key << flush;
+        spaceflag = 1;
+
+      } else if (key == ' ' && spaceflag) {
+        n += key;
+        cout << key << flush;
+      }
     }
 
     if (!n.empty()) {
-      emp[i].setName(n);
-      employeeCount++;
+      Employees e;
+      e.setName(n);
+      emp.push(e);
+    }
+  }
+}
+
+void showEmployees(const Stack& emp) {
+  Stack temp(emp);
+
+  cout << "\033[2J\033[H";
+  setColor("yellow");
+  display(5, 3, "Employee Names:");
+  setColor("white");
+  if (temp.empty()) {
+    cout << "\n    No employees entered yet.";
+  }
+
+  Employees e;
+  int i = 1;
+
+  while (temp.pop(&e)) {
+    cout << "\n    " << i << ": " << e.getName();
+    i++;
+  }
+}
+// void popEmployees(Stack& emp) {
+//   cout << "\033[2J\033[H";
+//   setColor("yellow");
+//   display(5, 3, "Pop Employees");
+//   display(5, 5, "Press ENTER to pop an employee");
+//   display(5, 6, "Press ESC Twice to return to menu");
+//   setColor("white");
+//   Employees e;
+
+//   while (true) {
+//     char key = getch_linux();
+//     if (key == '\033') {
+//       char next = getch_linux();
+
+//       if (next == '[' || next == 'O') {
+//         getch_linux();
+//         continue;
+//       }
+
+//       return;
+//     } else if (key == '\n' || key == '\r') {
+//       cout << "\033[2J\033[H";
+
+//       display(5, 3, "Pop Employees");
+
+//       if (emp.pop(&e)) {
+//         cout << "\n\n    Employee Popped: " << e.getName();
+
+//         cout << "\n\n    Remaining Employees: " << emp.size();
+
+//       } else {
+//         cout << "\n\n    No employees left!";
+//       }
+//       setColor("yellow");
+//       display(5, 22, "ENTER: Next Employee | ESC: Menu");
+//       setColor("white");
+//     }
+//   }
+// }
+void popEmployees(Stack& emp) {
+  cout << "\033[2J\033[H";
+
+  setColor("yellow");
+  display(5, 3, "Pop Employees");
+  display(5, 5, "Press ENTER to pop an employee");
+  display(5, 6, "Press ESC Twice to return to menu");
+  setColor("white");
+
+  Employees e;
+  int row = 9;
+
+  while (true) {
+    char key = getch_linux();
+
+    if (key == '\033') {
+      char next = getch_linux();
+
+      if (next == '[' || next == 'O') {
+        getch_linux();
+        continue;
+      }
+
+      return;
+    } else if (key == '\n' || key == '\r') {
+      if (emp.pop(&e)) {
+        display(5, row, "Employee Popped: " + e.getName());
+      } else {
+        display(5, row, "No employees left!");
+      }
+
+      row++;
     }
   }
 }
 void showMenu() {
   cout << "\033[2J\033[H";
 
-  setColor("yellow");
-  display(3, 3, "->");
+  setColor("red");
 
-  display(5, 3, "Menu");
+  display(5, 3, "JERRY'S MENU");
 
   setColor("white");
+  display(5, 5, "Screen 1");
+  display(5, 6, "Screen 2");
+  display(5, 7, "Exit");
+  setColor("yellow");
+  display(3, 4, "->");
 
   display(5, 4, "Employees");
-  display(5, 5, "Screen 1");
-  display(5, 6, "Exit");
 }
 
 int main() {
-  Employees emp[20];
+  Stack emp(20);
 
-  int employeeCount = 0;
-  int count1 = 0;
+  int count1 = 1;
 
   showMenu();
 
@@ -140,143 +239,126 @@ int main() {
       char arrow = getch_linux();
 
       if (bracket == '[') {
+        // DOWN ARROW
         if (arrow == 'B') {
-          if (count1 == 0) {
+          if (count1 == 1) {
             setColor("white");
-            display(3, 3, "\033[2K");
-            display(3, 3, "  Menu");
-
-            setColor("yellow");
-            display(3, 4, "\033[2K");
-            display(3, 4, "->Employees");
-
-            count1++;
-
-          } else if (count1 == 1) {
-            setColor("white");
-            display(3, 4, "\033[2K");
             display(3, 4, "  Employees");
 
             setColor("yellow");
-            display(3, 5, "\033[2K");
-            display(3, 5, "->Screen 1");
-
-            count1++;
-
-          } else if (count1 == 2) {
-            setColor("white");
-            display(3, 5, "\033[2K");
-            display(3, 5, "  Screen 1");
-
-            setColor("yellow");
-            display(3, 6, "\033[2K");
-            display(3, 6, "->Exit");
-
-            count1 = 3;
-
-          } else if (count1 == 3) {
-            setColor("white");
-            display(3, 6, "\033[2K");
-            display(3, 6, "  Exit");
-
-            setColor("yellow");
-            display(3, 3, "\033[2K");
-            display(3, 3, "->Menu");
-
-            count1 = 0;
-          }
-        } else if (arrow == 'A') {
-          if (count1 == 3) {
-            setColor("white");
-            display(3, 6, "\033[2K");
-            display(3, 6, "  Exit");
-
-            setColor("yellow");
-            display(3, 5, "\033[2K");
             display(3, 5, "->Screen 1");
 
             count1 = 2;
 
           } else if (count1 == 2) {
             setColor("white");
-            display(3, 5, "\033[2K");
             display(3, 5, "  Screen 1");
 
             setColor("yellow");
-            display(3, 4, "\033[2K");
+            display(3, 6, "->Screen 2");
+
+            count1 = 3;
+
+          } else if (count1 == 3) {
+            setColor("white");
+            display(3, 6, "  Screen 2");
+
+            setColor("yellow");
+            display(3, 7, "->Exit");
+
+            count1 = 4;
+
+          } else if (count1 == 4) {
+            setColor("white");
+            display(3, 7, "  Exit");
+
+            setColor("yellow");
+            display(3, 4, "->Employees");
+
+            count1 = 1;
+          }
+        }
+
+        // UP ARROW
+        else if (arrow == 'A') {
+          if (count1 == 4) {
+            setColor("white");
+            display(3, 7, "  Exit");
+
+            setColor("yellow");
+            display(3, 6, "->Screen 2");
+
+            count1 = 3;
+
+          } else if (count1 == 3) {
+            setColor("white");
+            display(3, 6, "  Screen 2");
+
+            setColor("yellow");
+            display(3, 5, "->Screen 1");
+
+            count1 = 2;
+
+          } else if (count1 == 2) {
+            setColor("white");
+            display(3, 5, "  Screen 1");
+
+            setColor("yellow");
             display(3, 4, "->Employees");
 
             count1 = 1;
 
           } else if (count1 == 1) {
             setColor("white");
-            display(3, 4, "\033[2K");
             display(3, 4, "  Employees");
 
             setColor("yellow");
-            display(3, 3, "\033[2K");
-            display(3, 3, "->Menu");
+            display(3, 7, "->Exit");
 
-            count1 = 0;
-
-          } else if (count1 == 0) {
-            setColor("white");
-            display(3, 3, "\033[2K");
-            display(3, 3, "  Menu");
-
-            setColor("yellow");
-            display(3, 6, "\033[2K");
-            display(3, 6, "->Exit");
-
-            count1 = 3;
+            count1 = 4;
           }
-        }else if(arrow=='H'){
-            setColor("white");
-            display(3, 4, "\033[2K");
-            display(3, 4, "  Employees");
-            display(3, 5, "\033[2K");
-            display(3, 5, "  Screen 1");
-            display(3, 6, "\033[2K");
-            display(3, 6, "  Exit");
-            setColor("yellow");
-            display(3, 3, "\033[2K");
-            display(3, 3, "->Menu");
-            count1=0;
-            
-        }else if (arrow=='F'){
-            setColor("white");
-            display(3, 4, "\033[2K");
-            display(3, 4, "  Employees");
-            display(3, 5, "\033[2K");
-            display(3, 5, "  Screen 1");
-            display(3, 3, "\033[2K");
-            display(3, 3, "  Menu");
-            setColor("yellow");
-            display(3, 6, "\033[2K");
-            display(3, 6, "->Exit");
-            count1=3;
+        }
+
+        // HOME KEY
+        else if (arrow == 'H') {
+          setColor("white");
+          display(3, 5, "  Screen 1");
+          display(3, 6, "  Screen 2");
+          display(3, 7, "  Exit");
+
+          setColor("yellow");
+          display(3, 4, "->Employees");
+
+          count1 = 1;
+        }
+
+        // END KEY
+        else if (arrow == 'F') {
+          setColor("white");
+          display(3, 4, "  Employees");
+          display(3, 5, "  Screen 1");
+          display(3, 6, "  Screen 2");
+
+          setColor("yellow");
+          display(3, 7, "->Exit");
+
+          count1 = 4;
         }
       }
+
     } else if (key == '\n' || key == '\r') {
       setColor("white");
+      // EMPLOYEES
       if (count1 == 1) {
-        enterEmployees(emp, employeeCount);
+        enterEmployees(emp);
 
         showMenu();
+        count1 = 1;
 
-        count1 = 0;
-      } else if (count1 == 2) {
-        cout << "\033[2J\033[H";
-
-        display(5, 3, "Employee Names:");
-
-        if (employeeCount == 0) {
-          cout << "\nNo employees entered yet.";
-        } else {
-          for (int i = 0; i < employeeCount; i++) {
-            cout << "\n    " << i + 1 << ": " << emp[i].getName();
-          }
-        }
+      }
+      // SCREEN 1
+      else if (count1 == 2) {
+        showEmployees(emp);
 
         display(5, 22, "Press ESC to return to menu...");
 
@@ -289,8 +371,17 @@ int main() {
         }
 
         showMenu();
-        count1 = 0;
-      } else if (count1 == 3) {
+        count1 = 1;
+      }
+      // SCREEN 2
+      else if (count1 == 3) {
+        popEmployees(emp);
+
+        showMenu();
+        count1 = 1;
+      }
+      // EXIT
+      else if (count1 == 4) {
         cout << "\033[2J\033[H" << flush;
         return 0;
       }
